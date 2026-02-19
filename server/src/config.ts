@@ -13,6 +13,7 @@ export const config = {
   X_CONSUMER_SECRET: process.env.X_CONSUMER_SECRET || "",
   X_CLIENT_ID: process.env.X_CLIENT_ID || "",
   X_CLIENT_SECRET: process.env.X_CLIENT_SECRET || "",
+  ANTHROPIC_API_KEY: process.env.ANTHROPIC_API_KEY || "",
   OAUTH_CALLBACK_URL:
     process.env.OAUTH_CALLBACK_URL || "http://localhost:5173/callback",
   DB_PATH: resolve(__dirname, "..", "data", "x-bookmarks.db"),

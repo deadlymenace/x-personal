@@ -125,6 +125,49 @@ export const createCategory = (data: { name: string; icon?: string }) =>
 export const deleteCategory = (id: number) =>
   request(`/categories/${id}`, { method: "DELETE" });
 
+// AI Categorization
+export const suggestCategories = () =>
+  request<CategorySuggestion[]>("/categories/suggest", { method: "POST" });
+export const acceptCategorySuggestion = (data: { name: string; icon: string }) =>
+  request<{ category: Category; categorized: number }>(
+    "/categories/accept-suggestion",
+    { method: "POST", body: JSON.stringify(data) }
+  );
+export const autoCategorize = (
+  categoryId: number,
+  onProgress: (progress: {
+    current: number;
+    total: number;
+    message: string;
+    done?: boolean;
+    categorized?: number;
+    error?: string;
+  }) => void
+) => {
+  return fetch(`${BASE}/categories/${categoryId}/auto-categorize`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+  }).then(async (res) => {
+    const reader = res.body?.getReader();
+    if (!reader) throw new Error("No response body");
+    const decoder = new TextDecoder();
+    let buffer = "";
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split("\n");
+      buffer = lines.pop() || "";
+      for (const line of lines) {
+        if (line.startsWith("data: ")) {
+          const data = JSON.parse(line.slice(6));
+          onProgress(data);
+        }
+      }
+    }
+  });
+};
+
 // Research
 export const researchSearch = (data: {
   query: string;
@@ -132,6 +175,7 @@ export const researchSearch = (data: {
   pages?: number;
   since?: string;
   minLikes?: number;
+  minImpressions?: number;
   limit?: number;
 }) =>
   request<ResearchResult>("/research/search", {
@@ -140,12 +184,87 @@ export const researchSearch = (data: {
   });
 export const researchThread = (tweetId: string) =>
   request<{ data: Tweet[]; total: number }>(`/research/thread/${tweetId}`);
-export const researchProfile = (username: string) =>
-  request<{ user: any; tweets: Tweet[] }>(`/research/profile/${username}`);
+export const researchProfile = (opts: {
+  username: string;
+  includeReplies?: boolean;
+}) => {
+  const qs = opts.includeReplies ? "?replies=true" : "";
+  return request<{ user: any; tweets: Tweet[] }>(
+    `/research/profile/${opts.username}${qs}`
+  );
+};
 export const researchTweet = (tweetId: string) =>
   request<Tweet>(`/research/tweet/${tweetId}`);
 export const bookmarkFromResearch = (tweetId: string) =>
   request(`/research/bookmark/${tweetId}`, { method: "POST" });
+
+// Deep research (SSE streaming)
+export interface DeepSearchEvent {
+  type:
+    | "status"
+    | "tweets"
+    | "analysis_chunk"
+    | "done"
+    | "error";
+  message?: string;
+  content?: string;
+  data?: Tweet[];
+  total?: number;
+  cached?: boolean;
+}
+
+function readSSE(
+  url: string,
+  body: any,
+  onEvent: (event: DeepSearchEvent) => void
+): Promise<void> {
+  return fetch(`${BASE}${url}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  }).then(async (res) => {
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ error: res.statusText }));
+      throw new Error(err.error || "Request failed");
+    }
+    const reader = res.body?.getReader();
+    if (!reader) throw new Error("No response body");
+    const decoder = new TextDecoder();
+    let buffer = "";
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split("\n");
+      buffer = lines.pop() || "";
+      for (const line of lines) {
+        if (line.startsWith("data: ")) {
+          try {
+            onEvent(JSON.parse(line.slice(6)));
+          } catch {}
+        }
+      }
+    }
+  });
+}
+
+export const deepSearch = (
+  data: {
+    query: string;
+    sort?: string;
+    pages?: number;
+    since?: string;
+    minLikes?: number;
+    minImpressions?: number;
+    limit?: number;
+  },
+  onEvent: (event: DeepSearchEvent) => void
+) => readSSE("/research/deep-search", data, onEvent);
+
+export const analyzeResearch = (
+  data: { tweets: Tweet[]; question: string },
+  onEvent: (event: DeepSearchEvent) => void
+) => readSSE("/research/analyze", data, onEvent);
 
 // Watchlist
 export const getWatchlist = () => request<WatchlistEntry[]>("/research/watchlist");
@@ -289,6 +408,14 @@ export interface WatchlistCheckResult {
   user?: any;
   tweets: Tweet[];
   error?: string;
+}
+
+export interface CategorySuggestion {
+  name: string;
+  icon: string;
+  reason: string;
+  estimatedCount: number;
+  sampleBookmarkIds: string[];
 }
 
 export interface SystemStatus {

@@ -15,7 +15,8 @@ export function useResearchThread() {
 
 export function useResearchProfile() {
   return useMutation({
-    mutationFn: api.researchProfile,
+    mutationFn: (opts: { username: string; includeReplies?: boolean }) =>
+      api.researchProfile(opts),
   });
 }
 

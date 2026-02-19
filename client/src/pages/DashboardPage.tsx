@@ -6,9 +6,12 @@ import {
   FolderOpen,
   Clock,
   Search,
+  Eye,
 } from "lucide-react";
 import { useBookmarkStats } from "../hooks/use-bookmarks";
 import { useBookmarks } from "../hooks/use-bookmarks";
+import { useCategories } from "../hooks/use-tags";
+import { useWatchlist } from "../hooks/use-research";
 import { compactNumber, timeAgo } from "../lib/utils";
 import BookmarkCard from "../components/bookmarks/BookmarkCard";
 
@@ -20,6 +23,8 @@ export default function DashboardPage() {
     page: "1",
     limit: "6",
   });
+  const { data: categories } = useCategories();
+  const { data: watchlist } = useWatchlist();
 
   const handleSearchKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === "Enter" && searchQuery.trim()) {
@@ -191,6 +196,89 @@ export default function DashboardPage() {
         ) : (
           <p className="text-text-secondary text-sm">
             No tags yet. Create tags to organize your bookmarks.
+          </p>
+        )}
+      </div>
+
+      {/* Categories */}
+      <div>
+        <div className="flex items-center justify-between mb-3">
+          <h2 className="text-lg font-semibold text-text-primary">
+            Categories
+          </h2>
+          <Link
+            to="/bookmarks"
+            className="text-sm text-accent hover:text-accent-hover transition-colors"
+          >
+            Manage
+          </Link>
+        </div>
+        {categories && categories.length > 0 ? (
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+            {categories.map((cat) => (
+              <Link
+                key={cat.id}
+                to={`/bookmarks?category=${cat.id}`}
+                className="bg-surface rounded-xl p-4 border border-border hover:border-border-hover transition-colors"
+              >
+                <div className="flex items-center gap-2 mb-1">
+                  <FolderOpen className="w-4 h-4 text-accent" />
+                  <span className="text-sm font-medium text-text-primary truncate">
+                    {cat.name}
+                  </span>
+                </div>
+                <p className="text-xs text-text-secondary">
+                  {cat.bookmark_count ?? 0} bookmark
+                  {cat.bookmark_count !== 1 ? "s" : ""}
+                </p>
+              </Link>
+            ))}
+          </div>
+        ) : (
+          <p className="text-text-secondary text-sm">
+            No categories yet. Create categories to group your bookmarks.
+          </p>
+        )}
+      </div>
+
+      {/* Watchlist */}
+      <div>
+        <div className="flex items-center justify-between mb-3">
+          <h2 className="text-lg font-semibold text-text-primary">
+            Watchlist
+          </h2>
+          <Link
+            to="/watchlist"
+            className="text-sm text-accent hover:text-accent-hover transition-colors"
+          >
+            View All
+          </Link>
+        </div>
+        {watchlist && watchlist.length > 0 ? (
+          <div className="bg-surface rounded-xl p-4 border border-border">
+            <div className="flex items-center gap-2 mb-3">
+              <Eye className="w-4 h-4 text-accent" />
+              <span className="text-sm text-text-primary">
+                Monitoring{" "}
+                <span className="font-semibold">{watchlist.length}</span>{" "}
+                account{watchlist.length !== 1 ? "s" : ""}
+              </span>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {watchlist.map((entry) => (
+                <Link
+                  key={entry.id}
+                  to="/watchlist"
+                  className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-accent-muted text-accent hover:bg-accent/20 transition-colors"
+                >
+                  @{entry.username}
+                </Link>
+              ))}
+            </div>
+          </div>
+        ) : (
+          <p className="text-text-secondary text-sm">
+            No accounts in your watchlist.
           </p>
         )}
       </div>

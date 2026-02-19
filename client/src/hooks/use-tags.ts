@@ -66,3 +66,21 @@ export function useCreateCategory() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ["categories"] }),
   });
 }
+
+export function useSuggestCategories() {
+  return useMutation({
+    mutationFn: api.suggestCategories,
+  });
+}
+
+export function useAcceptCategorySuggestion() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: api.acceptCategorySuggestion,
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["categories"] });
+      qc.invalidateQueries({ queryKey: ["bookmarks"] });
+      qc.invalidateQueries({ queryKey: ["bookmarkStats"] });
+    },
+  });
+}

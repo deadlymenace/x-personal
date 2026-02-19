@@ -7,7 +7,7 @@ import {
   Trash2,
   RefreshCw,
 } from "lucide-react";
-import { cn, timeAgo } from "../lib/utils";
+import { cn, timeAgo, compactNumber } from "../lib/utils";
 import {
   useWatchlist,
   useAddToWatchlist,
@@ -210,6 +210,39 @@ export default function WatchlistPage() {
                         </span>
                       )}
                     </div>
+                    {result?.user?.description && (
+                      <p className="text-text-secondary text-xs mt-1 line-clamp-2">
+                        {result.user.description}
+                      </p>
+                    )}
+                    {result?.user?.public_metrics && (
+                      <div className="flex items-center gap-3 mt-1 text-xs text-text-secondary">
+                        <span>
+                          <span className="font-medium text-text-primary">
+                            {compactNumber(
+                              result.user.public_metrics.followers_count ?? 0
+                            )}
+                          </span>{" "}
+                          followers
+                        </span>
+                        <span>
+                          <span className="font-medium text-text-primary">
+                            {compactNumber(
+                              result.user.public_metrics.following_count ?? 0
+                            )}
+                          </span>{" "}
+                          following
+                        </span>
+                        <span>
+                          <span className="font-medium text-text-primary">
+                            {compactNumber(
+                              result.user.public_metrics.tweet_count ?? 0
+                            )}
+                          </span>{" "}
+                          tweets
+                        </span>
+                      </div>
+                    )}
                     {entry.note && (
                       <p className="text-text-secondary text-sm mt-0.5 truncate">
                         {entry.note}

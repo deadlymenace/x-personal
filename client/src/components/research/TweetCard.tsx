@@ -1,4 +1,11 @@
-import { Heart, Repeat2, Eye, Loader2, BookmarkPlus } from "lucide-react";
+import {
+  Heart,
+  Repeat2,
+  Eye,
+  Loader2,
+  BookmarkPlus,
+  MessageSquare,
+} from "lucide-react";
 import type { Tweet } from "../../lib/api";
 import { cn, compactNumber, timeAgo } from "../../lib/utils";
 import { useBookmarkFromResearch } from "../../hooks/use-research";
@@ -6,6 +13,7 @@ import { useBookmarkFromResearch } from "../../hooks/use-research";
 interface TweetCardProps {
   tweet: Tweet;
   onTagClick?: (tag: string) => void;
+  onViewThread?: (conversationId: string) => void;
 }
 
 /** Remove t.co links from tweet text for cleaner display. */
@@ -13,7 +21,11 @@ function cleanText(text: string): string {
   return text.replace(/https?:\/\/t\.co\/\S+/g, "").trim();
 }
 
-export default function TweetCard({ tweet, onTagClick }: TweetCardProps) {
+export default function TweetCard({
+  tweet,
+  onTagClick,
+  onViewThread,
+}: TweetCardProps) {
   const bookmarkMutation = useBookmarkFromResearch();
 
   const handleBookmark = (e: React.MouseEvent) => {
@@ -39,24 +51,38 @@ export default function TweetCard({ tweet, onTagClick }: TweetCardProps) {
             {timeAgo(tweet.created_at)}
           </span>
         </div>
-        <button
-          onClick={handleBookmark}
-          disabled={bookmarkMutation.isPending || bookmarkMutation.isSuccess}
-          className={cn(
-            "inline-flex items-center gap-1.5 text-xs font-medium rounded-lg px-3 py-1 transition-colors",
-            "border border-accent text-accent",
-            "hover:bg-accent-muted",
-            "disabled:opacity-50 disabled:cursor-not-allowed",
-            bookmarkMutation.isSuccess && "border-success text-success"
+        <div className="flex items-center gap-1.5">
+          {tweet.conversation_id && onViewThread && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onViewThread(tweet.conversation_id);
+              }}
+              className="inline-flex items-center gap-1.5 text-xs font-medium rounded-lg px-3 py-1 transition-colors border border-border text-text-secondary hover:text-text-primary hover:bg-surface-hover"
+            >
+              <MessageSquare className="h-3.5 w-3.5" />
+              Thread
+            </button>
           )}
-        >
-          {bookmarkMutation.isPending ? (
-            <Loader2 className="h-3.5 w-3.5 animate-spin" />
-          ) : (
-            <BookmarkPlus className="h-3.5 w-3.5" />
-          )}
-          {bookmarkMutation.isSuccess ? "Saved" : "+Bookmark"}
-        </button>
+          <button
+            onClick={handleBookmark}
+            disabled={bookmarkMutation.isPending || bookmarkMutation.isSuccess}
+            className={cn(
+              "inline-flex items-center gap-1.5 text-xs font-medium rounded-lg px-3 py-1 transition-colors",
+              "border border-accent text-accent",
+              "hover:bg-accent-muted",
+              "disabled:opacity-50 disabled:cursor-not-allowed",
+              bookmarkMutation.isSuccess && "border-success text-success"
+            )}
+          >
+            {bookmarkMutation.isPending ? (
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+            ) : (
+              <BookmarkPlus className="h-3.5 w-3.5" />
+            )}
+            {bookmarkMutation.isSuccess ? "Saved" : "+Bookmark"}
+          </button>
+        </div>
       </div>
 
       {/* Row 2: Tweet text */}

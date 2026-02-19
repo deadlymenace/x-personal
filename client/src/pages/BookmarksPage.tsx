@@ -12,6 +12,9 @@ import {
   Trash2,
   Download,
   CheckSquare,
+  Sparkles,
+  Loader2,
+  Check,
 } from "lucide-react";
 import { cn } from "../lib/utils";
 import { timeAgo, compactNumber } from "../lib/utils";
@@ -27,9 +30,11 @@ import {
   useCategories,
   useAddTagsToBookmark,
   useRemoveTagFromBookmark,
+  useSuggestCategories,
+  useAcceptCategorySuggestion,
 } from "../hooks/use-tags";
-import { exportBookmarks } from "../lib/api";
-import type { Bookmark, Tag } from "../lib/api";
+import { exportBookmarks, autoCategorize } from "../lib/api";
+import type { Bookmark, Tag, CategorySuggestion } from "../lib/api";
 import BookmarkCard from "../components/bookmarks/BookmarkCard";
 import TagBadge from "../components/tags/TagBadge";
 
@@ -45,6 +50,15 @@ export default function BookmarksPage() {
   const [showExportMenu, setShowExportMenu] = useState(false);
   const [selectionMode, setSelectionMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [showAiPanel, setShowAiPanel] = useState(false);
+  const [aiCategoryId, setAiCategoryId] = useState<string>("");
+  const [aiProgress, setAiProgress] = useState<{
+    current: number;
+    total: number;
+    message: string;
+  } | null>(null);
+  const [aiRunning, setAiRunning] = useState(false);
+  const [suggestions, setSuggestions] = useState<CategorySuggestion[]>([]);
 
   const currentPage = searchParams.get("page") || "1";
   const currentSort = searchParams.get("sort") || "bookmarked_at";
@@ -71,6 +85,47 @@ export default function BookmarksPage() {
   const removeTag = useRemoveTagFromBookmark();
   const bulkDelete = useBulkDeleteBookmarks();
   const bulkTag = useBulkTagBookmarks();
+  const suggestMutation = useSuggestCategories();
+  const acceptMutation = useAcceptCategorySuggestion();
+
+  const handleAutoCategorize = async () => {
+    if (!aiCategoryId) return;
+    setAiRunning(true);
+    setAiProgress({ current: 0, total: 1, message: "Starting..." });
+    try {
+      await autoCategorize(Number(aiCategoryId), (progress) => {
+        if (progress.done) {
+          setAiProgress(null);
+          setAiRunning(false);
+        } else if (progress.error) {
+          setAiProgress(null);
+          setAiRunning(false);
+        } else {
+          setAiProgress(progress);
+        }
+      });
+    } catch {
+      setAiRunning(false);
+      setAiProgress(null);
+    }
+  };
+
+  const handleSuggest = () => {
+    suggestMutation.mutate(undefined, {
+      onSuccess: (data) => setSuggestions(data),
+    });
+  };
+
+  const handleAcceptSuggestion = (s: CategorySuggestion) => {
+    acceptMutation.mutate(
+      { name: s.name, icon: s.icon },
+      {
+        onSuccess: () => {
+          setSuggestions((prev) => prev.filter((x) => x.name !== s.name));
+        },
+      }
+    );
+  };
 
   const hasFilters = currentTag || currentCategory || currentQuery;
 
@@ -295,6 +350,20 @@ export default function BookmarksPage() {
             <option value="retweets">Retweets</option>
           </select>
 
+          {/* AI Categorize */}
+          <button
+            onClick={() => setShowAiPanel(!showAiPanel)}
+            className={cn(
+              "flex items-center gap-2 rounded-lg h-10 px-3 text-sm font-medium transition-colors",
+              showAiPanel
+                ? "bg-accent text-white"
+                : "bg-surface border border-border text-text-primary hover:bg-surface-hover"
+            )}
+          >
+            <Sparkles className="w-4 h-4" />
+            AI Categorize
+          </button>
+
           {/* Export Dropdown */}
           <div className="relative">
             <button
@@ -375,6 +444,137 @@ export default function BookmarksPage() {
             </button>
           )}
         </div>
+
+        {/* AI Categorization Panel */}
+        {showAiPanel && (
+          <div className="bg-surface rounded-xl border border-border p-4 space-y-4">
+            <div className="flex gap-6">
+              {/* Left: Categorize existing */}
+              <div className="flex-1 space-y-3">
+                <h3 className="text-sm font-semibold text-text-primary">
+                  Assign to Category
+                </h3>
+                <div className="flex gap-2">
+                  <select
+                    value={aiCategoryId}
+                    onChange={(e) => setAiCategoryId(e.target.value)}
+                    className="flex-1 bg-background border border-border rounded-lg h-9 px-3 text-sm text-text-primary outline-none focus:border-accent transition-colors"
+                  >
+                    <option value="">Select category...</option>
+                    {categories?.map((cat) => (
+                      <option key={cat.id} value={cat.id}>
+                        {cat.name}
+                      </option>
+                    ))}
+                  </select>
+                  <button
+                    onClick={handleAutoCategorize}
+                    disabled={!aiCategoryId || aiRunning}
+                    className="flex items-center gap-2 bg-accent text-white rounded-lg px-4 h-9 text-sm font-medium hover:bg-accent-hover transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {aiRunning ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <Sparkles className="w-4 h-4" />
+                    )}
+                    Categorize
+                  </button>
+                </div>
+                {aiProgress && (
+                  <div className="space-y-1.5">
+                    <div className="flex justify-between text-xs text-text-secondary">
+                      <span>{aiProgress.message}</span>
+                      <span>
+                        {aiProgress.current}/{aiProgress.total}
+                      </span>
+                    </div>
+                    <div className="w-full h-2 bg-surface-hover rounded-full overflow-hidden">
+                      <div
+                        className="h-full bg-accent rounded-full transition-all duration-300"
+                        style={{
+                          width: `${aiProgress.total > 0 ? (aiProgress.current / aiProgress.total) * 100 : 0}%`,
+                        }}
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Divider */}
+              <div className="w-px bg-border" />
+
+              {/* Right: Suggest categories */}
+              <div className="flex-1 space-y-3">
+                <h3 className="text-sm font-semibold text-text-primary">
+                  AI Suggestions
+                </h3>
+                <button
+                  onClick={handleSuggest}
+                  disabled={suggestMutation.isPending}
+                  className="flex items-center gap-2 border border-border bg-surface text-text-primary rounded-lg px-4 h-9 text-sm font-medium hover:bg-surface-hover transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {suggestMutation.isPending ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <Sparkles className="w-4 h-4" />
+                  )}
+                  Suggest Categories
+                </button>
+                {suggestMutation.isError && (
+                  <p className="text-error text-xs">
+                    {(suggestMutation.error as Error).message}
+                  </p>
+                )}
+              </div>
+            </div>
+
+            {/* Suggestion Cards */}
+            {suggestions.length > 0 && (
+              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3 pt-2 border-t border-border">
+                {suggestions.map((s) => (
+                  <div
+                    key={s.name}
+                    className="bg-background rounded-lg border border-border p-3 space-y-2"
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-medium text-text-primary">
+                        {s.name}
+                      </span>
+                      <span className="text-xs text-text-secondary">
+                        ~{s.estimatedCount} bookmarks
+                      </span>
+                    </div>
+                    <p className="text-xs text-text-secondary">{s.reason}</p>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => handleAcceptSuggestion(s)}
+                        disabled={acceptMutation.isPending}
+                        className="flex items-center gap-1 text-xs font-medium text-accent hover:bg-accent-muted px-2 py-1 rounded transition-colors disabled:opacity-50"
+                      >
+                        {acceptMutation.isPending ? (
+                          <Loader2 className="w-3 h-3 animate-spin" />
+                        ) : (
+                          <Check className="w-3 h-3" />
+                        )}
+                        Accept
+                      </button>
+                      <button
+                        onClick={() =>
+                          setSuggestions((prev) =>
+                            prev.filter((x) => x.name !== s.name)
+                          )
+                        }
+                        className="text-xs text-text-secondary hover:text-text-primary px-2 py-1 rounded transition-colors"
+                      >
+                        Dismiss
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Bulk Action Bar */}
         {selectionMode && (
