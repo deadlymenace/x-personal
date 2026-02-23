@@ -19,7 +19,12 @@ const app = express();
 // Middleware
 app.use(
   cors({
-    origin: ["http://localhost:5173", "http://localhost:3001"],
+    origin: [
+      "http://localhost:5173",
+      "http://localhost:3001",
+      "https://qweenbubba.love",
+      "https://www.qweenbubba.love",
+    ],
     credentials: true,
   })
 );
@@ -51,6 +56,7 @@ if (existsSync(clientDist)) {
 validateConfig();
 initializeDatabase();
 
-app.listen(config.PORT, () => {
-  console.log(`Server running at http://localhost:${config.PORT}`);
+const port = process.env.PORT ? parseInt(process.env.PORT) : config.PORT;
+app.listen(port, "0.0.0.0", () => {
+  console.log(`Server running on port ${port}`);
 });
