@@ -7,7 +7,7 @@ import {
   useResearchProfile,
 } from "../hooks/use-research";
 import { deepSearch, analyzeResearch } from "../lib/api";
-import type { Tweet, ResearchResult, DeepSearchEvent } from "../lib/api";
+import type { Tweet, ResearchResult } from "../lib/api";
 import TweetCard from "../components/research/TweetCard";
 
 type TabId = "search" | "thread" | "profile";

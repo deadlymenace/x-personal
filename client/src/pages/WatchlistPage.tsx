@@ -7,14 +7,14 @@ import {
   Trash2,
   RefreshCw,
 } from "lucide-react";
-import { cn, timeAgo, compactNumber } from "../lib/utils";
+import { timeAgo, compactNumber } from "../lib/utils";
 import {
   useWatchlist,
   useAddToWatchlist,
   useRemoveFromWatchlist,
   useCheckWatchlist,
 } from "../hooks/use-research";
-import type { WatchlistCheckResult, Tweet } from "../lib/api";
+import type { WatchlistCheckResult } from "../lib/api";
 import TweetCard from "../components/research/TweetCard";
 
 export default function WatchlistPage() {

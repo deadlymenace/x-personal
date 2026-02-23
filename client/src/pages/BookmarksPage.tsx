@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect } from "react";
-import { useSearchParams, Link } from "react-router-dom";
+import { useSearchParams } from "react-router-dom";
 import {
   Search,
   LayoutGrid,
@@ -34,9 +34,8 @@ import {
   useAcceptCategorySuggestion,
 } from "../hooks/use-tags";
 import { exportBookmarks, autoCategorize } from "../lib/api";
-import type { Bookmark, Tag, CategorySuggestion } from "../lib/api";
+import type { Bookmark, CategorySuggestion } from "../lib/api";
 import BookmarkCard from "../components/bookmarks/BookmarkCard";
-import TagBadge from "../components/tags/TagBadge";
 
 export default function BookmarksPage() {
   const [searchParams, setSearchParams] = useSearchParams();
